@@ -1,7 +1,6 @@
 using Microsoft.AspNetCore.Mvc;
-using Microsoft.EntityFrameworkCore;
-using TaskManagerAPI.Data;
 using TaskManagerAPI.Models;
+using TaskManagerAPI.Services;
 
 namespace TaskManagerAPI.Controllers
 {
@@ -9,41 +8,33 @@ namespace TaskManagerAPI.Controllers
     [ApiController]
     public class TasksController : ControllerBase
     {
-        private readonly TaskContext _context;
+        private readonly TaskService _taskService;
 
-        public TasksController(TaskContext context)
+        public TasksController(TaskService taskService)
         {
-            _context = context;
+            _taskService = taskService;
         }
 
-        /// <summary>
-        /// Obtiene todas las tareas.
-        /// </summary>
         [HttpGet]
         public async Task<ActionResult<IEnumerable<TaskModel>>> GetTasks()
         {
-            return await _context.Tasks.ToListAsync();
+            var tasks = await _taskService.GetTasksAsync();
+            return Ok(tasks);
         }
 
-        /// <summary>
-        /// Obtiene una tarea específica por su ID.
-        /// </summary>
         [HttpGet("{id}")]
         public async Task<ActionResult<TaskModel>> GetTask(int id)
         {
-            var task = await _context.Tasks.FindAsync(id);
+            var task = await _taskService.GetTaskByIdAsync(id);
 
             if (task == null)
             {
                 return NotFound();
             }
 
-            return task;
+            return Ok(task);
         }
 
-        /// <summary>
-        /// Crea una nueva tarea.
-        /// </summary>
         [HttpPost]
         public async Task<ActionResult<TaskModel>> PostTask(TaskModel task)
         {
@@ -52,15 +43,10 @@ namespace TaskManagerAPI.Controllers
                 return BadRequest("El título de la tarea es obligatorio.");
             }
 
-            _context.Tasks.Add(task);
-            await _context.SaveChangesAsync();
-
-            return CreatedAtAction(nameof(GetTask), new { id = task.Id }, task);
+            var createdTask = await _taskService.CreateTaskAsync(task);
+            return CreatedAtAction(nameof(GetTask), new { id = createdTask.Id }, createdTask);
         }
 
-        /// <summary>
-        /// Actualiza una tarea existente.
-        /// </summary>
         [HttpPut("{id}")]
         public async Task<IActionResult> PutTask(int id, TaskModel task)
         {
@@ -69,48 +55,25 @@ namespace TaskManagerAPI.Controllers
                 return BadRequest("El ID de la tarea no coincide.");
             }
 
-            _context.Entry(task).State = EntityState.Modified;
-
-            try
-            {
-                await _context.SaveChangesAsync();
-            }
-            catch (DbUpdateConcurrencyException)
-            {
-                if (!await _context.Tasks.AnyAsync(t => t.Id == id))
-                {
-                    return NotFound();
-                }
-                else
-                {
-                    throw;
-                }
-            }
-
-            return NoContent();
-        }
-
-        /// <summary>
-        /// Elimina una tarea existente.
-        /// </summary>
-        [HttpDelete("{id}")]
-        public async Task<IActionResult> DeleteTask(int id)
-        {
-            var task = await _context.Tasks.FindAsync(id);
-            if (task == null)
+            var updated = await _taskService.UpdateTaskAsync(task);
+            if (!updated)
             {
                 return NotFound();
             }
 
-            _context.Tasks.Remove(task);
-            await _context.SaveChangesAsync();
-
             return NoContent();
         }
 
-        private bool TaskExists(int id)
+        [HttpDelete("{id}")]
+        public async Task<IActionResult> DeleteTask(int id)
         {
-            return _context.Tasks.Any(e => e.Id == id);
+            var deleted = await _taskService.DeleteTaskAsync(id);
+            if (!deleted)
+            {
+                return NotFound();
+            }
+
+            return NoContent();
         }
     }
 }
