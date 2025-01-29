@@ -18,6 +18,17 @@ builder.Services.AddSwaggerGen();
 // Agregamos los servicios de la aplicación
 builder.Services.AddScoped<TaskService>();
 
+// Configure CORS
+builder.Services.AddCors(options =>
+{
+    options.AddPolicy("AllowAll", policy =>
+    {
+        policy.AllowAnyOrigin()
+              .AllowAnyMethod()
+              .AllowAnyHeader();
+    });
+});
+
 var app = builder.Build();
 
 // configurar el pipeline de la aplicación
@@ -29,5 +40,6 @@ if (app.Environment.IsDevelopment())
 
 app.UseHttpsRedirection();
 app.UseAuthorization();
+app.UseCors("AllowAll"); // Apply the CORS policy
 app.MapControllers();
 app.Run();
